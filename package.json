@@ -1,0 +1,14 @@
+{
+  "name": "examplebot",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "body-parser": "^1.13.3",
+    "express": "^4.13.3",
+    "request": "^2.61.0",
+    "string": "^3.3.1"
+  }
+}
