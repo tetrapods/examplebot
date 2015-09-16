@@ -1,6 +1,6 @@
 # examplebot
 
-Example bot which consumes the Chatbot API -  http://chatbox.com/api.html
+Example bot which consumes the Chatbot API -  Documentation located in the Advanced Tab of the administrative control panel.
 
 Requires node.js
 
