@@ -83,6 +83,14 @@ function asyncHandoff(text, roomId) {
    asyncSend(data, "/handoff");
 }
 
+function asyncResolve(roomId) {
+   var data = {
+      token: options.chatboxToken,
+      roomId: roomId
+   };
+   asyncSend(data, "/resolve");
+}
+
 function asyncHistory(roomId) {
    var data = {
       token: options.chatboxToken,
@@ -170,14 +178,23 @@ function chatbox(body) {
 
 function onChat(body) {
    addRoom(body.roomId);
+   var async = S(body.content).contains("#async");
    if (S(body.content).contains("#handoff")) {
-      var async = S(body.content).contains("#async");
       if (async) {
          replyWhisper("I am asking for some human assistance, async");
          asyncHandoff("Hellooo, any humans out there?", body.roomId);
       } else {
          asyncWhisper("I am asking for some human assistance, sync", body.roomId);
          replyHandoff("Hellooo, any humans out there?");
+      }
+   }
+   if (S(body.content).contains("#resolve")) {
+      if (async) {
+         replyWhisper("I am resolving, async");
+         asyncResolve(body.roomId);
+      } else {
+         asyncWhisper("I am resolving, sync", body.roomId);
+         replyResolve();
       }
    }
    if (S(body.content).contains("#history")) {
@@ -243,6 +260,12 @@ function replyHandoff(text, options) {
    var obj = options || {};
    obj.action = "handoff";
    obj.text = text;
+   response.succeed(obj);
+}
+
+function replyResolve(options) {
+   var obj = options || {};
+   obj.action = "resolve";
    response.succeed(obj);
 }
 
