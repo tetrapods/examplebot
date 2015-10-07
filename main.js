@@ -104,6 +104,7 @@ function asyncHistory(roomId) {
 
 function asyncSend(data, location, callback, tries) {
    tries = tries || 1;
+   console.log("post> " + JSON.stringify(data));
    request({
       method: 'POST',
       uri: options.chatboxURL + location,
@@ -113,21 +114,27 @@ function asyncSend(data, location, callback, tries) {
    }, function(error, response, body) {
       if (!response) {
          // unable to complete request successfully, try later
+         console.log("fail> empty");
          retry();
       } else {
          switch (response.statusCode) {
             case 200:
                // success!
-               console.log("post> " + JSON.stringify(data));
+               console.log("success> " + JSON.stringify(body));
                if (callback) callback(body);
                break;
             case 401:
                // maintenance, try later
+               console.log("fail-401> " + JSON.stringify(body));
                retry();
                break;
             case 404:
                // insufficient rights
+               console.log("fail-404> " + JSON.stringify(body));
                console.log(" err> insufficient rights to post to %s", options.chatboxURL + location)
+               break;
+            default:
+               console.log("fail-" + response.statusCode + "> " + JSON.stringify(body));
                break;
          }
       }
@@ -187,6 +194,7 @@ function onChat(body) {
          asyncWhisper("I am asking for some human assistance, sync", body.roomId);
          replyHandoff("Hellooo, any humans out there?");
       }
+      return;
    }
    if (S(body.content).contains("#resolve")) {
       if (async) {
@@ -196,10 +204,12 @@ function onChat(body) {
          asyncWhisper("I am resolving, sync", body.roomId);
          replyResolve();
       }
+      return;
    }
    if (S(body.content).contains("#history")) {
       replyWhisper("I am asking for the history");
       asyncHistory(body.roomId);
+      return;
    }
    if (body.visibility == "whisper") {
       replyWhisper("Sssh <b>" + body.userName + "</b>, you I can hear you <i title=\'" + JSON.stringify(body) + "\'>whisper</i>");
