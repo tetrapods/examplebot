@@ -20,7 +20,7 @@ function main() {
    app.post('/chatbox', function(req, res) {
       res.succeed = function(obj) {
          obj = obj || {};
-         obj.success = "true"
+         obj.success = "true";
          console.log('resp> SUCCESS %s', JSON.stringify(obj));
          this.status(200).send(obj);
       };
@@ -165,17 +165,17 @@ function chatbox(body) {
          break;
       case "added":
          addRoom(body.roomId);
-         replySay("Thank you for having me, it's great to be here!", { suppressWelcome: true });
+         asyncSay("Thank you for having me, it's great to be here!", { suppressWelcome: true }, body.roomId);
          break;
       case "removed":
          removeRoom(body.roomId);
          response.succeed();
          break;
-      case "chat":
-         onChat(body);
+      case "message":
+         onMessage(body);
          break;
-      case "fromQueue":
-         fromQueue(body);
+      case "offer":
+         offer(body);
          break;
       default:
          response.fail("Unknown action " + body.action);
@@ -183,100 +183,56 @@ function chatbox(body) {
    }
 }
 
-function onChat(body) {
+function onMessage(body) {
    addRoom(body.roomId);
-   var async = S(body.content).contains("#async");
-   if (S(body.content).contains("#handoff")) {
-      if (async) {
-         replyWhisper("I am asking for some human assistance, async");
-         asyncHandoff("Hellooo, any humans out there?", body.roomId);
-      } else {
-         asyncWhisper("I am asking for some human assistance, sync", body.roomId);
-         replyHandoff("Hellooo, any humans out there?");
-      }
+   if (body.content.indexOf("#handoff") >= 0) {
+      asyncWhisper("I am asking for some human assistance, sync", body.roomId);
+      asyncHandoff("Hellooo, any humans out there?", body.roomId);
       return;
    }
-   if (S(body.content).contains("#resolve")) {
-      if (async) {
-         replyWhisper("I am resolving, async");
-         asyncResolve(body.roomId);
-      } else {
-         asyncWhisper("I am resolving, sync", body.roomId);
-         replyResolve();
-      }
+   if (body.content.indexOf("#resolve") >= 0) {
+      asyncWhisper("I am resolving, sync", body.roomId);
+      asyncResolve(body.roomId);
       return;
    }
-   if (S(body.content).contains("#history")) {
-      replyWhisper("I am asking for the history");
+   if (body.content.indexOf("#history") >= 0) {
+      asyncWhisper("I am asking for the history", body.roomId);
       asyncHistory(body.roomId);
       return;
    }
    if (body.visibility == "whisper") {
-      replyWhisper("Sssh <b>" + body.userName + "</b>, you I can hear you <i title=\'" + JSON.stringify(body) + "\'>whisper</i>");
+      asyncWhisper("Sssh <b>" + body.userName + "</b>, you I can hear you <i title=\'" + JSON.stringify(body) + "\'>whisper</i>", body.roomId);
    } else {
-      replySay("Hello there <b>" + body.userName + "</b> you spoke and I heard <i title=\'" + JSON.stringify(body) + "\'>" + body.content + "</i>");
+      asyncSay("Hello there <b>" + body.userName + "</b> you spoke and I heard <i title=\'" + JSON.stringify(body) + "\'>" + body.content + "</i>", body.roomId);
    }
 }
 
-function fromQueue(body) {
-   var allowed = body.allowed;
+function offer(body) {
    var routing = body.routing;
    var contents = body.contents;
    var username = body.userName;
    var userId = body.userId;
-   
+   var roomId = body.roomId;
+
    if (contents.length == 0) {
-      response.fail("fromQueue with empty contents");
+      response.fail("offer with empty contents");
       return;
    }
    
+   // fake auto-ignore and auto-skip by just looking for #skip and #ignore in message
    if (routing == "automatic") {
-      // fake auto-ignore and auto-skip by just looking for #skip and #ignore in message
-      if (S(contents[0]).contains("#skip") && allowed.indexOf("skip") >= 0) {
+      if (S(contents[0]).contains("#skip")) {
          response.succeed({ action: "skip" });
          return;
       }
-      if (S(contents[0]).contains("#ignore") && allowed.indexOf("ignore") >= 0) {
+      if (S(contents[0]).contains("#ignore")) {
          response.succeed({ action: "ignore" });
          return;
       }
    }
    
-   if (allowed.indexOf("take") >= 0) {
-      response.succeed({ action: "take", text: "Enter, if you dare {chatbox}" });
-      return;
-   }
-   
-   response.fail("Unable to decide what to do with %s", JSON.stringify(body));
-}
-
-function replySay(text, options) {
-   var obj = options || {};
-   obj.action = "chat";
-   obj.content = text;
-   obj.mediaType = "html";
-   response.succeed(obj);
-}
-
-function replyWhisper(text, options) {
-   var obj = options || {};
-   obj.action = "whisper";
-   obj.content = text;
-   obj.mediaType = "html";
-   response.succeed(obj);
-}
-
-function replyHandoff(text, options) {
-   var obj = options || {};
-   obj.action = "handoff";
-   obj.text = text;
-   response.succeed(obj);
-}
-
-function replyResolve(options) {
-   var obj = options || {};
-   obj.action = "resolve";
-   response.succeed(obj);
+   response.succeed({ action: "take" });
+   asyncSay("Enter, if you dare {chatbox}",roomId);
 }
 
 //--------------------- misc functions
