@@ -17,7 +17,7 @@ function main() {
      console.log('  in> %s %s %s', req.method, req.path, JSON.stringify(req.body));
      next();
    });
-   app.post('/chatbox', function(req, res) {
+   app.post('/bot', function(req, res) {
       res.succeed = function(obj) {
          obj = obj || {};
          obj.success = "true";
@@ -38,6 +38,26 @@ function main() {
    setInterval(doSomething, 1000000);
    
 }
+
+// function endpoint(endpoint, handler) {
+//    app.post('/bot' + endpoint, function(req, res) {
+//       res.succeed = function(obj) {
+//          obj = obj || {};
+//          obj.success = "true";
+//          console.log('resp> SUCCESS %s', JSON.stringify(obj));
+//          this.status(200).send(obj);
+//       };
+//       res.fail = function(text) {
+//          console.log('resp> FAIL %s', text);
+//          this.status(200).send({ success: "false", text: text });
+//       };
+//       response = res;
+//       if (!body) {
+//          res.fail("Missing comand or action");
+//          return;
+//       }
+//       handler(body);
+// }
 
 //---------------- asynchronous part of the protocol
 
@@ -74,19 +94,18 @@ function asyncWhisper(text, roomId, mediaType) {
    asyncSend(data, "/whisper");
 }
 
-function asyncHandoff(text, roomId) {
+function asyncHandoff(queueId) {
    var data = {
       token: options.chatboxToken,
-      text: text,
-      roomId: roomId
+      queueId: queueId
    };
    asyncSend(data, "/handoff");
 }
 
-function asyncResolve(roomId) {
+function asyncResolve(queueId) {
    var data = {
       token: options.chatboxToken,
-      roomId: roomId
+      queueId: queueId
    };
    asyncSend(data, "/resolve");
 }
@@ -104,7 +123,7 @@ function asyncHistory(roomId) {
 
 function asyncSend(data, location, callback, tries) {
    tries = tries || 1;
-   console.log("post> " + JSON.stringify(data));
+   console.log("POST " + location + " " + JSON.stringify(data));
    request({
       method: 'POST',
       uri: options.chatboxURL + location,
@@ -187,12 +206,12 @@ function onMessage(body) {
    addRoom(body.roomId);
    if (body.content.indexOf("#handoff") >= 0) {
       asyncWhisper("I am asking for some human assistance, sync", body.roomId);
-      asyncHandoff("Hellooo, any humans out there?", body.roomId);
+      asyncHandoff(body.queueId);
       return;
    }
    if (body.content.indexOf("#resolve") >= 0) {
-      asyncWhisper("I am resolving, sync", body.roomId);
-      asyncResolve(body.roomId);
+      asyncWhisper("I am resolving, sync", body.queueId);
+      asyncResolve(body.queueId);
       return;
    }
    if (body.content.indexOf("#history") >= 0) {
