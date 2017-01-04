@@ -17,11 +17,11 @@ function main() {
      console.log('  in> %s %s %s', req.method, req.path, JSON.stringify(req.body));
      next();
    });
-   endpoint("/bot/resolved", doResolved);
-   endpoint("/bot/added", doAdded);
-   endpoint("/bot/removed", doRemoved);
-   endpoint("/bot/message", doMessage);
-   endpoint("/bot/offer", doOffer);
+   endpoint("/resolved", doResolved);
+   endpoint("/added", doAdded);
+   endpoint("/removed", doRemoved);
+   endpoint("/message", doMessage);
+   endpoint("/offer", doOffer);
    server = app.listen(options.port, function () {
      console.log('Example app listening on port %s', server.address().port);
    });
