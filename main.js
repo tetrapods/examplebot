@@ -17,20 +17,11 @@ function main() {
      console.log('  in> %s %s %s', req.method, req.path, JSON.stringify(req.body));
      next();
    });
-   app.post('/bot', function(req, res) {
-      res.succeed = function(obj) {
-         obj = obj || {};
-         obj.success = "true";
-         console.log('resp> SUCCESS %s', JSON.stringify(obj));
-         this.status(200).send(obj);
-      };
-      res.fail = function(text) {
-         console.log('resp> FAIL %s', text);
-         this.status(200).send({ success: "false", text: text });
-      };
-      response = res;
-      chatbox(req.body);
-   });
+   endpoint("/bot/resolved", doResolved);
+   endpoint("/bot/added", doAdded);
+   endpoint("/bot/removed", doRemoved);
+   endpoint("/bot/message", doMessage);
+   endpoint("/bot/offer", doOffer);
    server = app.listen(options.port, function () {
      console.log('Example app listening on port %s', server.address().port);
    });
@@ -39,25 +30,26 @@ function main() {
    
 }
 
-// function endpoint(endpoint, handler) {
-//    app.post('/bot' + endpoint, function(req, res) {
-//       res.succeed = function(obj) {
-//          obj = obj || {};
-//          obj.success = "true";
-//          console.log('resp> SUCCESS %s', JSON.stringify(obj));
-//          this.status(200).send(obj);
-//       };
-//       res.fail = function(text) {
-//          console.log('resp> FAIL %s', text);
-//          this.status(200).send({ success: "false", text: text });
-//       };
-//       response = res;
-//       if (!body) {
-//          res.fail("Missing comand or action");
-//          return;
-//       }
-//       handler(body);
-// }
+function endpoint(endpoint, handler) {
+   app.post(endpoint, function(req, res) {
+      res.succeed = function (obj) {
+         obj = obj || {};
+         obj.success = "true";
+         console.log('resp> SUCCESS %s', JSON.stringify(obj));
+         this.status(200).send(obj);
+      };
+      res.fail = function (text) {
+         console.log('resp> FAIL %s', text);
+         this.status(200).send({success: "false", text: text});
+      };
+      response = res;
+      if (!req.body) {
+         res.fail("Missing comand or action");
+         return;
+      }
+      handler(req.body);
+   });
+}
 
 //---------------- asynchronous part of the protocol
 
@@ -172,37 +164,22 @@ function asyncSend(data, location, callback, tries) {
 
 //----------------- synchronous part of the protocol
 
-function chatbox(body) {
-   if (!body || !body.action) {
-      response.fail("Missing comand or action");
-      return;
-   }
-   switch (body.action) {
-      case "resolved":
-         console.log("Room marked as resolved, history:");
-         console.log(body.messages);
-         break;
-      case "added":
-         addRoom(body.roomId);
-         asyncSay("Thank you for having me, it's great to be here!", { suppressWelcome: true }, body.roomId);
-         break;
-      case "removed":
-         removeRoom(body.roomId);
-         response.succeed();
-         break;
-      case "message":
-         onMessage(body);
-         break;
-      case "offer":
-         offer(body);
-         break;
-      default:
-         response.fail("Unknown action " + body.action);
-         break;
-   }
+function doResolved(body) {
+   console.log("Room marked as resolved, history:");
+   console.log(body.messages);
 }
 
-function onMessage(body) {
+function doAdded(body) {
+   addRoom(body.roomId);
+   asyncSay("Thank you for having me, it's great to be here!", { suppressWelcome: true }, body.roomId);
+}
+
+function doRemoved() {
+   removeRoom(body.roomId);
+   response.succeed();
+}
+
+function doMessage(body) {
    addRoom(body.roomId);
    if (body.content.indexOf("#handoff") >= 0) {
       asyncWhisper("I am asking for some human assistance, sync", body.roomId);
@@ -210,7 +187,7 @@ function onMessage(body) {
       return;
    }
    if (body.content.indexOf("#resolve") >= 0) {
-      asyncWhisper("I am resolving, sync", body.queueId);
+      asyncWhisper("I am resolving, sync", body.roomId);
       asyncResolve(body.queueId);
       return;
    }
@@ -226,7 +203,7 @@ function onMessage(body) {
    }
 }
 
-function offer(body) {
+function doOffer(body) {
    var routing = body.routing;
    var contents = body.contents;
    var username = body.userName;
