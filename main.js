@@ -124,6 +124,27 @@ function asyncHistory(roomId) {
    });
 }
 
+function asyncAddInteractive(roomId) {
+   var data = {
+      token: options.chatboxToken,
+      customerId: options.byRoom[roomId].userId,
+      interactiveId: options.defaultInteractiveId
+   };
+
+   var action;
+   var mediaType = options.byRoom[roomId].mediaType;
+   if (mediaType && mediaType == "sms") {
+      action = "/smsInteractive";
+      data.message = "Come take a look at this {link}";
+   } else {
+      action = "/makeInteractive"
+   }
+
+   asyncSend(data, action, function(body) {
+      console.log("==== Adding interactive to " + roomId + " ====");
+   });
+}
+
 function asyncSend(data, location, callback, tries) {
    tries = tries || 1;
    console.log("POST " + location + " " + JSON.stringify(data));
@@ -185,7 +206,7 @@ function doResolved(body) {
 
 function doAdded(body) {
    response.succeed();
-   if(addRoom(body.roomId)){
+   if(addRoom(body.roomId, body.userId)){
       asyncSay("Thank you for having me, it's great to be here!", { suppressWelcome: true }, body.roomId);
    }
 }
@@ -197,7 +218,6 @@ function doRemoved(body) {
 
 function doMessage(body) {
    response.succeed();
-   addRoom(body.roomId);
    if (body.content.indexOf("#handoff") >= 0) {
       asyncWhisper("I am asking for some human assistance, sync", body.roomId);
       asyncHandoff(body.queueId);
@@ -207,6 +227,9 @@ function doMessage(body) {
    } else if (body.content.indexOf("#history") >= 0) {
       asyncWhisper("I am asking for the history", body.roomId);
       asyncHistory(body.roomId);
+   } else if (body.content.indexOf("#interactive") >= 0) {
+      asyncWhisper("I am adding an interactive", body.roomId);
+      asyncAddInteractive(body.roomId);
    } else {
       if (body.visibility == "whisper") {
          asyncWhisper("Sssh <b>" + body.userName + "</b>, you I can hear you ", body.roomId);
@@ -246,7 +269,7 @@ function doOffer(body) {
    }
    
    response.succeed({ action: "take" });
-   addRoom(body.roomId);
+   addRoom(body.roomId, userId, channel);
    asyncSay("Enter, if you dare {chatbox}",roomId, channel);
 }
 
@@ -266,6 +289,7 @@ function loadOptions() {
       options.rooms = [];
       options.byRoom = {};
       options.port = 7111;
+      options.defaultInteractiveId = 1;
       saveOptions();
       console.log("Please edit " + optionsFilename + " to have the proper values for chatbox URL and token");
       process.exit(0);
@@ -283,9 +307,9 @@ function getRandomRoom() {
    }
 }
 
-function addRoom(roomId) {
+function addRoom(roomId, userId, mediaType) {
    if (!options.byRoom[roomId]) {
-      options.byRoom[roomId] = roomId;
+      options.byRoom[roomId] = {userId: userId, mediaType: mediaType};
       options.rooms.push(roomId);
       saveOptions();
       return true;
