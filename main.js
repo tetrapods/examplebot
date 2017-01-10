@@ -226,7 +226,7 @@ function doOffer(body) {
    var username = body.userName;
    var userId = body.userId;
    var roomId = body.roomId;
-   var channel = body.channel;
+   var channel = body.channel == "sms" ? "sms": undefined;
 
    if (contents.length == 0) {
       response.fail("offer with empty contents");
