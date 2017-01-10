@@ -102,6 +102,17 @@ function asyncResolve(queueId) {
    asyncSend(data, "/resolve");
 }
 
+function asyncLeave(roomId) {
+   var data = {
+      token: options.chatboxToken,
+      roomId: roomId
+   };
+   asyncSend(data, "/leaveRoom", function() {
+      console.log("==== Left Room " + roomId + " ====");
+      removeRoom(roomId);
+   });
+}
+
 function asyncHistory(roomId) {
    var data = {
       token: options.chatboxToken,
@@ -150,7 +161,7 @@ function asyncSend(data, location, callback, tries) {
          }
       }
    });
-   
+
    function retry() {
       // this retries for about 6 minutes, which is probably more patience than customers will show
       if (tries < 10) {
@@ -165,41 +176,47 @@ function asyncSend(data, location, callback, tries) {
 //----------------- synchronous part of the protocol
 
 function doResolved(body) {
+   response.succeed();
    console.log("Room marked as resolved, history:");
    console.log(body.messages);
+   console.log("Going to leave the room");
+   asyncLeave(body.roomId);
 }
 
 function doAdded(body) {
-   addRoom(body.roomId);
-   asyncSay("Thank you for having me, it's great to be here!", { suppressWelcome: true }, body.roomId);
+   response.succeed();
+   if(addRoom(body.roomId)){
+      asyncSay("Thank you for having me, it's great to be here!", { suppressWelcome: true }, body.roomId);
+   }
 }
 
-function doRemoved() {
-   removeRoom(body.roomId);
+function doRemoved(body) {
    response.succeed();
+   removeRoom(body.roomId);
 }
 
 function doMessage(body) {
+   response.succeed();
    addRoom(body.roomId);
    if (body.content.indexOf("#handoff") >= 0) {
       asyncWhisper("I am asking for some human assistance, sync", body.roomId);
       asyncHandoff(body.queueId);
-      return;
-   }
-   if (body.content.indexOf("#resolve") >= 0) {
+   } else if (body.content.indexOf("#resolve") >= 0) {
       asyncWhisper("I am resolving, sync", body.roomId);
       asyncResolve(body.queueId);
-      return;
-   }
-   if (body.content.indexOf("#history") >= 0) {
+   } else if (body.content.indexOf("#history") >= 0) {
       asyncWhisper("I am asking for the history", body.roomId);
       asyncHistory(body.roomId);
-      return;
-   }
-   if (body.visibility == "whisper") {
-      asyncWhisper("Sssh <b>" + body.userName + "</b>, you I can hear you <i title=\'" + JSON.stringify(body) + "\'>whisper</i>", body.roomId);
    } else {
-      asyncSay("Hello there <b>" + body.userName + "</b> you spoke and I heard <i title=\'" + JSON.stringify(body) + "\'>" + body.content + "</i>", body.roomId);
+      if (body.visibility == "whisper") {
+         asyncWhisper("Sssh <b>" + body.userName + "</b>, you I can hear you ", body.roomId);
+      } else {
+         if (body.mediaType == "sms") {
+            asyncSay("Hello there " + body.userName + "  you spoke and I heard " + body.content, body.roomId, "sms");
+         } else {
+            asyncSay("Hello there <b>" + body.userName + "</b> you spoke and I heard <i title=\'" + JSON.stringify(body) + "\'>" + body.content + "</i>", body.roomId);
+         }
+      }
    }
 }
 
@@ -209,6 +226,7 @@ function doOffer(body) {
    var username = body.userName;
    var userId = body.userId;
    var roomId = body.roomId;
+   var channel = body.channel;
 
    if (contents.length == 0) {
       response.fail("offer with empty contents");
@@ -228,7 +246,8 @@ function doOffer(body) {
    }
    
    response.succeed({ action: "take" });
-   asyncSay("Enter, if you dare {chatbox}",roomId);
+   addRoom(body.roomId);
+   asyncSay("Enter, if you dare {chatbox}",roomId, channel);
 }
 
 //--------------------- misc functions
@@ -269,7 +288,9 @@ function addRoom(roomId) {
       options.byRoom[roomId] = roomId;
       options.rooms.push(roomId);
       saveOptions();
+      return true;
    }
+   return false;
 }
 
 function removeRoom(roomId) {
