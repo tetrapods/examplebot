@@ -86,18 +86,20 @@ function asyncWhisper(text, roomId, mediaType) {
    asyncSend(data, "/whisper");
 }
 
-function asyncHandoff(queueId) {
+function asyncHandoff(queueId, roomId) {
    var data = {
       token: options.chatboxToken,
-      queueId: queueId
+      queueId: queueId,
+      roomId: roomId
    };
    asyncSend(data, "/handoff");
 }
 
-function asyncResolve(queueId) {
+function asyncResolve(queueId, roomId) {
    var data = {
       token: options.chatboxToken,
-      queueId: queueId
+      queueId: queueId,
+      roomId: roomId
    };
    asyncSend(data, "/resolve");
 }
@@ -220,10 +222,10 @@ function doMessage(body) {
    response.succeed();
    if (body.content.indexOf("#handoff") >= 0) {
       asyncWhisper("I am asking for some human assistance, sync", body.roomId);
-      asyncHandoff(body.queueId);
+      asyncHandoff(body.queueId, body.roomId);
    } else if (body.content.indexOf("#resolve") >= 0) {
       asyncWhisper("I am resolving, sync", body.roomId);
-      asyncResolve(body.queueId);
+      asyncResolve(body.queueId, body.roomId);
    } else if (body.content.indexOf("#history") >= 0) {
       asyncWhisper("I am asking for the history", body.roomId);
       asyncHistory(body.roomId);
